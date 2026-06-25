@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patches</title>
+<style>
+:root{--bg:#f0f2f5;--surface:#fff;--border:#d0d5dd;--grid-bg:#e8eaf0;--cell-border:#c5cad6;--text:#1a1d23;--subtext:#6b7280;--shadow:rgba(0,0,0,.08);}
+[data-theme=dark]{--bg:#0f1117;--surface:#1c1f2e;--border:#2e3348;--grid-bg:#161925;--cell-border:#2a2f42;--text:#e8eaf0;--subtext:#8b92a8;--shadow:rgba(0,0,0,.4);}
+[data-theme=ocean]{--bg:#0a1628;--surface:#0d2040;--border:#1a3a5c;--grid-bg:#091530;--cell-border:#1e4060;--text:#c8e6ff;--subtext:#7ab3d8;--shadow:rgba(0,0,0,.4);}
+[data-theme=rose]{--bg:#fff1f5;--surface:#fff;--border:#fbc4d4;--grid-bg:#fff0f3;--cell-border:#f9a8c0;--text:#4a0020;--subtext:#9f4060;--shadow:rgba(180,0,60,.08);}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;transition:background .3s,color .3s;-webkit-user-select:none;user-select:none;}
+
+/* ── HEADER ── */
+header{width:100%;max-width:520px;padding:14px 18px 6px;display:flex;align-items:center;justify-content:space-between;}
+.title{font-size:22px;font-weight:800;letter-spacing:-.5px}.title span{color:#6c63ff}
+.puzzle-num{font-size:11px;color:var(--subtext);font-weight:600;margin-top:2px}
+.hright{display:flex;align-items:center;gap:10px}
+.timer{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--subtext);background:var(--surface);border:1.5px solid var(--border);border-radius:7px;padding:3px 9px;min-width:50px;text-align:center;transition:color .2s;}
+.timer.on{color:var(--text)}
+.themes{display:flex;gap:5px}
+.tbtn{width:19px;height:19px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .15s;}
+.tbtn:hover{transform:scale(1.2)}.tbtn.active{border-color:var(--text)!important}
+.tbtn[data-t=light]{background:#f0f2f5;border-color:#bbb}
+.tbtn[data-t=dark]{background:#1c1f2e;border-color:#555}
+.tbtn[data-t=ocean]{background:#0a1628;border-color:#1a3a5c}
+.tbtn[data-t=rose]{background:#ffd6e7;border-color:#f9a8c0}
+
+/* ── DIFFICULTY SELECTOR ── */
+.diff-bar{display:flex;gap:0;border-radius:10px;overflow:hidden;border:1.5px solid var(--border);margin-bottom:10px;}
+.diff-btn{
+  padding:7px 0;flex:1;font-size:12px;font-weight:700;cursor:pointer;
+  background:var(--surface);color:var(--subtext);border:none;
+  transition:background .15s,color .15s;letter-spacing:.03em;
+}
+.diff-btn:not(:last-child){border-right:1.5px solid var(--border);}
+.diff-btn.active-easy{background:#22c55e;color:#fff;}
+.diff-btn.active-medium{background:#f59e0b;color:#fff;}
+.diff-btn.active-hard{background:#ef4444;color:#fff;}
+
+/* ── DIFF BADGE ── */
+.diff-badge{
+  display:inline-block;font-size:10px;font-weight:800;
+  letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle;
+}
+.badge-easy{background:#dcfce7;color:#166534;}
+.badge-medium{background:#fef3c7;color:#92400e;}
+.badge-hard{background:#fee2e2;color:#991b1b;}
+
+[data-theme=dark] .badge-easy{background:#14532d;color:#86efac;}
+[data-theme=dark] .badge-medium{background:#451a03;color:#fcd34d;}
+[data-theme=dark] .badge-hard{background:#450a0a;color:#fca5a5;}
+
+.sub{font-size:11px;color:var(--subtext);text-align:center;margin-bottom:8px;padding:0 16px;line-height:1.5}
+.wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 12px 30px;width:100%;max-width:520px;}
+.grid-outer{background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:10px;box-shadow:0 4px 20px var(--shadow);position:relative;transition:background .3s,border-color .3s;overflow:hidden;}
+.grid{display:grid;position:relative;}
+.cell{background:var(--grid-bg);border:1.5px solid var(--cell-border);display:flex;align-items:center;justify-content:center;position:relative;cursor:crosshair;transition:background .08s;}
+.cell.pre-ok{background:rgba(108,99,255,.22)!important;border-color:rgba(108,99,255,.55)!important;}
+.cell.pre-bad{background:rgba(239,68,68,.18)!important;border-color:rgba(239,68,68,.45)!important;}
+.clue{pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;position:relative;border-radius:8px;padding:3px 5px;min-width:36px;min-height:36px;}
+.clue-num{font-size:19px;font-weight:900;line-height:1;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);}
+.clue-icon{font-size:11px;line-height:1;margin-top:1px;color:rgba(255,255,255,.82);font-weight:700;}
+.patch-div{position:absolute;border-radius:6px;pointer-events:none;z-index:1;border:2.5px solid rgba(255,255,255,.28);box-shadow:0 2px 8px rgba(0,0,0,.14);}
+.btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text);transition:background .15s,transform .1s;}
+.btn:hover{background:var(--grid-bg);transform:translateY(-1px)}
+.btn.primary{background:#6c63ff;color:#fff;border-color:#6c63ff}.btn.primary:hover{background:#5a52e0}
+.btn.danger{background:#ef4444;color:#fff;border-color:#ef4444}.btn.danger:hover{background:#dc2626}
+.status{font-size:12px;color:var(--subtext);font-weight:600;min-height:16px;text-align:center;}
+.status.err{color:#ef4444}.status.ok{color:#22c55e}
+
+/* ── WIN ── */
+.win-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;}
+.win-overlay.show{display:flex}
+.win-card{background:var(--surface);border-radius:20px;padding:32px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:pop .4s cubic-bezier(.34,1.56,.64,1);max-width:300px;width:90%;}
+.we{font-size:48px;margin-bottom:6px}.wt{font-size:22px;font-weight:800;margin-bottom:3px}
+.ws{font-size:12px;color:var(--subtext);margin-bottom:12px}
+.wtime{font-size:44px;font-weight:800;color:#6c63ff;font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.wtlabel{font-size:11px;color:var(--subtext);margin-bottom:20px}
+.wdiff{font-size:13px;font-weight:700;margin-bottom:16px}
+.wbtns{display:flex;gap:10px;justify-content:center}
+@keyframes pop{from{transform:scale(.75);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── HINT BUTTON ── */
+.hint-used{opacity:.45;cursor:not-allowed!important;}
+</style>
+</head>
+<body data-theme="light">
+<header>
+  <div>
+    <div class="title">Pat<span>ch</span>es</div>
+    <div class="puzzle-num" id="pnum">Puzzle #1 <span class="diff-badge badge-easy" id="diffBadge">Easy</span></div>
+  </div>
+  <div class="hright">
+    <div class="timer" id="timerEl">0:00</div>
+    <div class="themes">
+      <button class="tbtn active" data-t="light" onclick="setTheme('light')"></button>
+      <button class="tbtn" data-t="dark" onclick="setTheme('dark')"></button>
+      <button class="tbtn" data-t="ocean" onclick="setTheme('ocean')"></button>
+      <button class="tbtn" data-t="rose" onclick="setTheme('rose')"></button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- Difficulty selector -->
+  <div class="diff-bar" style="width:100%;max-width:340px">
+    <button class="diff-btn active-easy" id="dbEasy"   onclick="setDiff('easy')">🟢 Easy</button>
+    <button class="diff-btn"             id="dbMedium" onclick="setDiff('medium')">🟡 Medium</button>
+    <button class="diff-btn"             id="dbHard"   onclick="setDiff('hard')">🔴 Hard</button>
+  </div>
+
+  <p class="sub" id="subHint">Drag across cells to draw rectangles · Each patch needs exactly one clue · Number + shape shown</p>
+
+  <div class="grid-outer"><div class="grid" id="grid"></div></div>
+  <div class="status" id="statusEl"></div>
+  <div class="btns">
+    <button class="btn danger" onclick="undoLast()">↩ Undo</button>
+    <button class="btn" id="hintBtn" onclick="useHint()">💡 Hint</button>
+    <button class="btn" onclick="resetGame()">↺ Reset</button>
+    <button class="btn primary" onclick="nextPuzzle()">Next →</button>
+  </div>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-card">
+    <div class="we">🎉</div>
+    <div class="wt">Solved!</div>
+    <div class="ws">All patches placed correctly</div>
+    <div class="wtime" id="winTime">0:00</div>
+    <div class="wtlabel">your time</div>
+    <div class="wdiff" id="winDiff"></div>
+    <div class="wbtns">
+      <button class="btn" onclick="resetGame()">↺ Retry</button>
+      <button class="btn primary" onclick="nextPuzzle()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DIFFICULTY CONFIG ─────────────────────────────────────────────────────────
+// Each level changes:
+//   grid size, patch size weighting, clue info shown, hint count
+const DIFF = {
+  easy: {
+    rows:5, cols:5,
+    minArea:4, maxArea:12,       // prefer big patches — fewer pieces = easier
+    areaWeight: a => 1/Math.pow(a,0.5),  // bigger rects more likely
+    showNum:true, showShape:true, // show both number AND shape icon
+    hints:3,
+    label:'Easy', badge:'badge-easy', color:'#22c55e',
+    subHint:'Drag to draw rectangles · Each patch has one clue · <b>Number + shape icon</b> shown'
+  },
+  medium: {
+    rows:6, cols:6,
+    minArea:2, maxArea:9,
+    areaWeight: a => 1/Math.pow(a,1.2),  // balanced mix
+    showNum:true, showShape:false,  // only number — figure out shape yourself
+    hints:2,
+    label:'Medium', badge:'badge-medium', color:'#f59e0b',
+    subHint:'6×6 grid · <b>Number only</b> — deduce the shape yourself · 2 hints available'
+  },
+  hard: {
+    rows:7, cols:7,
+    minArea:2, maxArea:6,
+    areaWeight: a => 1/Math.pow(a,2.2),  // heavily favour small, tricky patches
+    showNum:false, showShape:true,  // only shape icon — deduce the count!
+    hints:1,
+    label:'Hard', badge:'badge-hard', color:'#ef4444',
+    subHint:'7×7 grid · <b>Shape icon only</b> — no numbers shown · 1 hint available'
+  }
+};
+
+// ── PALETTE ───────────────────────────────────────────────────────────────────
+const COLORS=['#6c63ff','#ef4444','#10b981','#f59e0b','#ec4899','#0ea5e9','#7c3aed','#f97316','#22c55e','#5bc8f5','#9b84ee','#d97706','#f43f5e','#06b6d4','#84cc16','#a855f7','#14b8a6','#fb923c'];
+
+function pickColors(n){
+  const pool=[...COLORS]; const out=[];
+  for(let i=0;i<n;i++){const idx=Math.floor(seededRand()*pool.length);out.push(pool.splice(idx,1)[0]);}
+  return out;
+}
+
+// ── SEEDED RNG ────────────────────────────────────────────────────────────────
+let rngState=0;
+function seedRng(s){rngState=s>>>0;}
+function seededRand(){
+  rngState|=0;rngState=rngState+0x6D2B79F5|0;
+  let t=Math.imul(rngState^rngState>>>15,1|rngState);
+  t=t+Math.imul(t^t>>>7,61|t)^t;
+  return((t^t>>>14)>>>0)/4294967296;
+}
+
+// ── PUZZLE GENERATOR ──────────────────────────────────────────────────────────
+function generatePuzzle(seed, diff){
+  const cfg = DIFF[diff];
+  const {rows,cols} = cfg;
+  const MAX_ATTEMPTS=800;
+  for(let a=0;a<MAX_ATTEMPTS;a++){
+    seedRng(seed+a*1013);
+    const r=tryGenerate(rows,cols,cfg);
+    if(r) return r;
+  }
+  return fallback(seed,rows,cols,cfg);
+}
+
+function tryGenerate(rows,cols,cfg){
+  const grid=Array.from({length:rows},()=>new Array(cols).fill(-1));
+  const rects=[];
+  let safety=rows*cols*8;
+
+  while(safety-->0){
+    const free=[];
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(grid[r][c]===-1) free.push([r,c]);
+    if(!free.length) break;
+
+    // isolated check — any free cell with all neighbors covered/border = stuck
+    const stuck=free.filter(([r,c])=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].every(([nr,nc])=>nr<0||nr>=rows||nc<0||nc>=cols||grid[nr][nc]!==-1));
+    if(stuck.length) return null;
+
+    const [ar,ac]=free[Math.floor(seededRand()*free.length)];
+    const cand=tryRect(grid,ar,ac,rows,cols,cfg);
+    if(!cand) return null;
+
+    const id=rects.length;
+    for(let r=cand.r1;r<=cand.r2;r++) for(let c=cand.c1;c<=cand.c2;c++) grid[r][c]=id;
+    rects.push(cand);
+  }
+
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(grid[r][c]===-1) return null;
+
+  const colors=pickColors(rects.length);
+  return rects.map((rect,i)=>{
+    const area=(rect.r2-rect.r1+1)*(rect.c2-rect.c1+1);
+    const shape=shapeOf(rect);
+    // pick clue cell: for variety, slightly randomise within rect
+    const cells=[];
+    for(let r=rect.r1;r<=rect.r2;r++) for(let c=rect.c1;c<=rect.c2;c++) cells.push([r,c]);
+    const[cr,cc]=cells[Math.floor(seededRand()*cells.length)];
+    return{...rect,color:colors[i],count:area,shape,clueR:cr,clueC:cc};
+  });
+}
+
+function tryRect(grid,ar,ac,rows,cols,cfg){
+  const{minArea,maxArea,areaWeight}=cfg;
+  const cands=[];
+  for(let r1=0;r1<=ar;r1++)for(let r2=ar;r2<rows;r2++)for(let c1=0;c1<=ac;c1++)for(let c2=ac;c2<cols;c2++){
+    const area=(r2-r1+1)*(c2-c1+1);
+    if(area<2||area>maxArea) continue;  // min=2 always
+    let ok=true;
+    for(let r=r1;r<=r2&&ok;r++) for(let c=c1;c<=c2&&ok;c++) if(grid[r][c]!==-1) ok=false;
+    if(ok) cands.push({r1,c1,r2,c2,area});
+  }
+  if(!cands.length) return null;
+
+  // filter to preferred range
+  const preferred=cands.filter(c=>c.area>=minArea&&c.area<=maxArea);
+  const pool=preferred.length?preferred:cands;
+
+  const weights=pool.map(c=>areaWeight(c.area));
+  const total=weights.reduce((a,b)=>a+b,0);
+  let rand=seededRand()*total;
+  for(let i=0;i<pool.length;i++){rand-=weights[i];if(rand<=0)return pool[i];}
+  return pool[pool.length-1];
+}
+
+function shapeOf(rect){const rows=rect.r2-rect.r1+1,cols=rect.c2-rect.c1+1;return rows===cols?'square':cols>rows?'wide':'tall';}
+
+function fallback(seed,rows,cols,cfg){
+  // Build a guaranteed-valid spiral tiling of size rows×cols
+  seedRng(seed);
+  const grid=Array.from({length:rows},()=>new Array(cols).fill(-1));
+  const rects=[];
+  // Greedy: scan top-left uncovered, extend right then down as far as possible (up to maxArea)
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(grid[r][c]!==-1) continue;
+      // find max width
+      let maxW=0;
+      while(c+maxW<cols&&grid[r][c+maxW]===-1) maxW++;
+      // try heights
+      let bestR={r1:r,c1:c,r2:r,c2:c+Math.min(maxW,3)-1};
+      const id=rects.length;
+      for(let r=bestR.r1;r<=bestR.r2;r++) for(let c=bestR.c1;c<=bestR.c2;c++) grid[r][c]=id;
+      rects.push(bestR);
+    }
+  }
+  const colors=pickColors(rects.length);
+  return rects.map((rect,i)=>{
+    const area=(rect.r2-rect.r1+1)*(rect.c2-rect.c1+1);
+    const cr=Math.floor((rect.r1+rect.r2)/2),cc=Math.floor((rect.c1+rect.c2)/2);
+    return{...rect,color:colors[i],count:area,shape:shapeOf(rect),clueR:cr,clueC:cc};
+  });
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const CSIZE=58,CGAP=2;
+let diff='easy', puzzleNum=1, solution=[], drawn=[], hintsLeft=0;
+let drawing=false,drawStart=null,drawCur=null;
+let timerSec=0,timerInterval=null,timerOn=false;
+
+// ── TIMER ─────────────────────────────────────────────────────────────────────
+function tStart(){if(timerOn)return;timerOn=true;document.getElementById('timerEl').classList.add('on');timerInterval=setInterval(()=>{timerSec++;tickT();},1000);}
+function tStop(){clearInterval(timerInterval);timerInterval=null;}
+function tReset(){tStop();timerSec=0;timerOn=false;document.getElementById('timerEl').classList.remove('on');tickT();}
+function tickT(){const m=Math.floor(timerSec/60),s=timerSec%60;document.getElementById('timerEl').textContent=`${m}:${String(s).padStart(2,'0')}`;}
+function fmtT(s){return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function initPuzzle(num){
+  puzzleNum=num;
+  solution=generatePuzzle(num*1234567+89+diff.charCodeAt(0)*777, diff);
+  drawn=[];drawing=false;drawStart=null;drawCur=null;
+  tReset();
+  hintsLeft=DIFF[diff].hints;
+  updateHintBtn();
+  const cfg=DIFF[diff];
+  document.getElementById('pnum').innerHTML=`Puzzle #${num} <span class="diff-badge ${cfg.badge}">${cfg.label}</span>`;
+  document.getElementById('winOverlay').classList.remove('show');
+  document.getElementById('subHint').innerHTML=cfg.subHint;
+  setStatus('','');
+  buildGrid();
+}
+
+function updateHintBtn(){
+  const btn=document.getElementById('hintBtn');
+  btn.textContent=`💡 Hint (${hintsLeft})`;
+  btn.classList.toggle('hint-used',hintsLeft<=0);
+}
+
+// ── BUILD GRID ────────────────────────────────────────────────────────────────
+function buildGrid(){
+  const cfg=DIFF[diff];
+  const{rows,cols}=cfg;
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  grid.style.gridTemplateColumns=`repeat(${cols},${CSIZE}px)`;
+  grid.style.gridTemplateRows=`repeat(${rows},${CSIZE}px)`;
+  grid.style.gap=CGAP+'px';
+
+  const clueMap={};
+  solution.forEach(s=>{clueMap[`${s.clueR},${s.clueC}`]=s;});
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.r=r;cell.dataset.c=c;
+      cell.style.width=CSIZE+'px';cell.style.height=CSIZE+'px';
+
+      const cl=clueMap[`${r},${c}`];
+      if(cl){
+        const badge=document.createElement('div');
+        badge.className='clue';
+        badge.style.background=cl.color;
+
+        if(cfg.showNum){
+          const num=document.createElement('div');
+          num.className='clue-num';
+          num.textContent=cl.count;
+          badge.appendChild(num);
+        }
+        if(cfg.showShape){
+          const icon=document.createElement('div');
+          icon.className='clue-icon';
+          icon.textContent=cl.shape==='square'?'■':cl.shape==='wide'?'▬':'▮';
+          badge.appendChild(icon);
+        }
+        // hard: only shape shown — font bigger since no number
+        if(!cfg.showNum&&cfg.showShape){
+          badge.querySelector('.clue-icon').style.fontSize='20px';
+        }
+        cell.appendChild(badge);
+      }
+
+      cell.addEventListener('mousedown',e=>onDown(e,r,c));
+      cell.addEventListener('mouseover',e=>onOver(e,r,c));
+      cell.addEventListener('touchstart',e=>onDown(e,r,c),{passive:false});
+      cell.addEventListener('touchmove',e=>{
+        e.preventDefault();
+        const t=e.touches[0];
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        if(el&&el.dataset.r!==undefined) onOver(e,parseInt(el.dataset.r),parseInt(el.dataset.c));
+      },{passive:false});
+
+      grid.appendChild(cell);
+    }
+  }
+
+  document.removeEventListener('mouseup',onUp);
+  document.addEventListener('mouseup',onUp);
+  document.removeEventListener('touchend',onUp);
+  document.addEventListener('touchend',onUp);
+  renderOverlays();
+}
+
+// ── DRAG ─────────────────────────────────────────────────────────────────────
+function getRows(){return DIFF[diff].rows;}
+function getCols(){return DIFF[diff].cols;}
+
+function onDown(e,r,c){
+  e.preventDefault();
+  if(cellCovered(r,c)){setStatus('Cell already covered — undo to change it','err');return;}
+  drawing=true;drawStart={r,c};drawCur={r,c};
+  tStart();updatePreview();
+}
+function onOver(e,r,c){if(!drawing)return;drawCur={r,c};updatePreview();}
+function onUp(){
+  if(!drawing)return;
+  drawing=false;commitRect();
+  drawStart=null;drawCur=null;clearPrev();renderOverlays();checkWin();
+}
+
+function mkRect(a,b){return{r1:Math.min(a.r,b.r),c1:Math.min(a.c,b.c),r2:Math.max(a.r,b.r),c2:Math.max(a.c,b.c)};}
+
+function updatePreview(){
+  clearPrev();
+  if(!drawStart||!drawCur)return;
+  const rect=mkRect(drawStart,drawCur);
+  const{valid}=validate(rect);
+  for(let r=rect.r1;r<=rect.r2;r++) for(let c=rect.c1;c<=rect.c2;c++){const el=getCell(r,c);if(el)el.classList.add(valid?'pre-ok':'pre-bad');}
+}
+function clearPrev(){document.querySelectorAll('.cell.pre-ok,.cell.pre-bad').forEach(c=>c.classList.remove('pre-ok','pre-bad'));}
+
+function validate(rect){
+  const area=(rect.r2-rect.r1+1)*(rect.c2-rect.c1+1);
+  if(area<2) return{valid:false,msg:'Minimum 2 cells per patch'};
+
+  for(const d of drawn) if(rectsOverlap(rect,d)) return{valid:false,msg:'Overlaps an existing patch'};
+
+  const inside=solution.filter(s=>s.clueR>=rect.r1&&s.clueR<=rect.r2&&s.clueC>=rect.c1&&s.clueC<=rect.c2);
+  if(!inside.length)  return{valid:false,msg:'No clue inside — must contain a clue cell'};
+  if(inside.length>1) return{valid:false,msg:'Contains more than one clue'};
+
+  const clue=inside[0];
+  const cfg=DIFF[diff];
+
+  // On hard (no number shown) we validate count silently — user must deduce it
+  if(cfg.showNum && area!==clue.count) return{valid:false,msg:`Needs exactly ${clue.count} cells (drew ${area})`};
+  if(!cfg.showNum && area!==clue.count) return{valid:false,msg:`Wrong size — think about the shape icon`};
+
+  const rows=rect.r2-rect.r1+1,cols=rect.c2-rect.c1+1;
+  if(clue.shape==='square'&&rows!==cols) return{valid:false,msg:'Must be a square (equal width & height)'};
+  if(clue.shape==='wide'&&cols<=rows)    return{valid:false,msg:'Must be wider than tall (▬)'};
+  if(clue.shape==='tall'&&rows<=cols)    return{valid:false,msg:'Must be taller than wide (▮)'};
+
+  return{valid:true,clue};
+}
+
+function commitRect(){
+  if(!drawStart||!drawCur)return;
+  const rect=mkRect(drawStart,drawCur);
+  const{valid,msg,clue}=validate(rect);
+  if(valid){drawn.push({...rect,color:clue.color});setStatus('✓ Patch placed!','ok');setTimeout(()=>setStatus('',''),900);}
+  else{setStatus(msg,'err');setTimeout(()=>setStatus('',''),2200);}
+}
+
+function rectsOverlap(a,b){return!(a.r2<b.r1||a.r1>b.r2||a.c2<b.c1||a.c1>b.c2);}
+function cellCovered(r,c){return drawn.some(d=>r>=d.r1&&r<=d.r2&&c>=d.c1&&c<=d.c2);}
+function getCell(r,c){
+  const rows=getRows(),cols=getCols();
+  if(r<0||r>=rows||c<0||c>=cols)return null;
+  return document.getElementById('grid').children[r*cols+c];
+}
+
+// ── OVERLAYS ─────────────────────────────────────────────────────────────────
+function renderOverlays(){
+  document.querySelectorAll('.patch-div').forEach(d=>d.remove());
+  const grid=document.getElementById('grid');
+  drawn.forEach(rect=>{
+    const div=document.createElement('div');
+    div.className='patch-div';
+    const l=rect.c1*(CSIZE+CGAP),t=rect.r1*(CSIZE+CGAP);
+    const w=(rect.c2-rect.c1+1)*(CSIZE+CGAP)-CGAP;
+    const h=(rect.r2-rect.r1+1)*(CSIZE+CGAP)-CGAP;
+    div.style.cssText=`left:${l}px;top:${t}px;width:${w}px;height:${h}px;background:${rect.color};opacity:.78;`;
+    grid.appendChild(div);
+  });
+}
+
+// ── HINT ─────────────────────────────────────────────────────────────────────
+function useHint(){
+  if(hintsLeft<=0) return;
+  // find first unsolved clue (not yet drawn)
+  const usedClues=new Set();
+  drawn.forEach(d=>{
+    solution.forEach(s=>{
+      if(s.clueR>=d.r1&&s.clueR<=d.r2&&s.clueC>=d.c1&&s.clueC<=d.c2) usedClues.add(s.clueR+','+s.clueC);
+    });
+  });
+  const remaining=solution.filter(s=>!usedClues.has(s.clueR+','+s.clueC));
+  if(!remaining.length) return;
+  const pick=remaining[Math.floor(Math.random()*remaining.length)];
+  drawn.push({r1:pick.r1,c1:pick.c1,r2:pick.r2,c2:pick.c2,color:pick.color});
+  hintsLeft--;updateHintBtn();
+  renderOverlays();
+  setStatus(`💡 Hint used — patch revealed!`,'ok');
+  setTimeout(()=>setStatus('',''),1500);
+  checkWin();
+}
+
+// ── WIN ───────────────────────────────────────────────────────────────────────
+function checkWin(){
+  const rows=getRows(),cols=getCols();
+  if(drawn.length!==solution.length)return;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(!cellCovered(r,c))return;
+  tStop();
+  const cfg=DIFF[diff];
+  document.getElementById('winTime').textContent=fmtT(timerSec);
+  document.getElementById('winDiff').innerHTML=`<span class="diff-badge ${cfg.badge}">${cfg.label}</span> · ${solution.length} patches`;
+  setTimeout(()=>document.getElementById('winOverlay').classList.add('show'),400);
+}
+
+// ── CONTROLS ─────────────────────────────────────────────────────────────────
+function undoLast(){if(drawn.length){drawn.pop();renderOverlays();setStatus('Last patch removed','');setTimeout(()=>setStatus('',''),1000);}}
+function resetGame(){document.getElementById('winOverlay').classList.remove('show');initPuzzle(puzzleNum);}
+function nextPuzzle(){document.getElementById('winOverlay').classList.remove('show');initPuzzle(puzzleNum+1);}
+
+function setDiff(d){
+  diff=d;
+  document.getElementById('dbEasy').className='diff-btn'+(d==='easy'?' active-easy':'');
+  document.getElementById('dbMedium').className='diff-btn'+(d==='medium'?' active-medium':'');
+  document.getElementById('dbHard').className='diff-btn'+(d==='hard'?' active-hard':'');
+  initPuzzle(1); // reset to puzzle 1 on difficulty change
+}
+
+function setStatus(msg,cls){const el=document.getElementById('statusEl');el.textContent=msg;el.className='status'+(cls?' '+cls:'');}
+function setTheme(t){document.body.dataset.theme=t;document.querySelectorAll('.tbtn').forEach(b=>b.classList.toggle('active',b.dataset.t===t));}
+
+initPuzzle(1);
+</script>
+</body>
+</html>
